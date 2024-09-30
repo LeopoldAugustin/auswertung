@@ -1313,9 +1313,9 @@ if uploaded_file is not None:
             df = process_dataframe(df, fremdbestandteile_under_10=fremdbestandteile_under_10)
 
             # Display the final dataframe
-            st.subheader("Processed DataFrame")
-            st.dataframe(df)
-
+            st.subheader("Ausgewertete Tabelle")
+            st.dataframe(df, use_container_width=True)  # Use container width
+            
             # Option to download the dataframe as a CSV
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
