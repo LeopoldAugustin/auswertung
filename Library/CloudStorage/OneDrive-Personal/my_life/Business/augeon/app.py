@@ -13,14 +13,37 @@ uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 
 if uploaded_file is not None:
     # Read the Excel file into a dataframe
-    df = pd.read_excel(uploaded_file, header=10, usecols=[0, 1, 4])
+    #df = pd.read_excel(uploaded_file, header=10, usecols=[0, 1, 4])
 
     # Rename columns
-    df.rename(columns={
-        "Analyse in der Gesamtfraktion": "Stoff",
-        "Unnamed: 1": "Aggregat",
-        "Unnamed: 4": "Menge"
-    }, inplace=True)
+    #df.rename(columns={
+    #    "Analyse in der Gesamtfraktion": "Stoff",
+    #    "Unnamed: 1": "Aggregat",
+    #    "Unnamed: 4": "Menge"
+    #}, inplace=True)
+    
+    #############
+
+    # Read the first 15 rows without header to check cell values
+    temp_df = pd.read_excel(uploaded_file, header=None, nrows=15)
+
+    # Determine the header row based on cell values
+    if temp_df.iloc[9, 0] == "Parameter":
+        header_row = 10
+    elif temp_df.iloc[6, 0] == "Parameter":
+        header_row = 7
+    elif temp_df.iloc[13, 0] == "PARAMETER MIT BEWERTUNG NACH MANTELV":
+        header_row = 15
+    else:
+        raise ValueError("Unknown Excel format")
+
+    # Read the data with the correct header
+    df = pd.read_excel(uploaded_file, header=header_row, usecols=[0, 1, 4])
+
+    # Rename columns based on column indexes
+    df.columns = ['Stoff', 'Aggregat', 'Menge']
+
+    #############
 
     # Filter the DataFrame
     filter_values = [
