@@ -1,11 +1,12 @@
 import streamlit as st
+st.set_page_config(layout="wide")  # Set the layout to wide
 import pandas as pd
 import numpy as np
 
 # Title and Description
-st.title("BMF Classification Application")
+st.title("BMF Klassifizierung")
 st.write("""
-This application allows you to upload an Excel file, select options, and process the data using the BMF classification functions.
+Lade den agrolab Auswertungsbericht als Excel Datei hoch und erhalte die BMF Klassifizierung, welche die aktuellsten gesetzlichen Vorgaben erfüllt. Aktuell werden nur Berichte zu einer einzigen Probe unterstützt.
 """)
 
 # Step 1: Upload an Excel file
