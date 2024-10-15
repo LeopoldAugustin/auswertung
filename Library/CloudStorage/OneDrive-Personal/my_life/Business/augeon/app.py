@@ -16,7 +16,7 @@ with open('complete_df_stoffe.pkl', 'rb') as file:
 # Title and Description
 st.title("BMF Klassifizierung")
 st.write("""
-Lade den agrolab Auswertungsbericht als Excel Datei hoch und erhalte die BMF Klassifizierung, welche die aktuellsten gesetzlichen Vorgaben erfüllt.
+Lade den agrolab Auswertungsbericht als Excel Datei hoch und erhalte die BMF Klassifizierung, welche die aktuellsten gesetzlichen Vorgaben erfüllt. Aktuell werden nur Berichte zu einer einzigen Probe unterstützt.
 """)
 
 # Step 1: Upload an Excel file
@@ -52,12 +52,41 @@ if uploaded_file is not None:
         "PAK 15 Summe gem. ErsatzbaustoffV"
     ]
 
-    # Check F6 for multiple tables
-    temp_df = pd.read_excel(uploaded_file, header=None, nrows=6, usecols="F")
-    
-    # Step 2: Check if F6 is empty
-    if pd.isna(temp_df.iloc[5, 0]):
-        print("Cell F6 is empty. Proceeding with the usual process...")
+    # Clean and convert the 'Menge' column to numeric
+    def clean_menge(value):
+        if isinstance(value, str):
+            value = value.replace('<', '') \
+                            .replace('>', '') \
+                            .replace('<=', '') \
+                            .replace('≥', '') \
+                            .replace('>=', '') \
+                            .replace('≤', '') \
+                            .replace('=', '') \
+                            .replace(',', '.') \
+                            .strip()
+        return pd.to_numeric(value, errors='coerce')
+
+    # Step 1: Read the first 6 rows to check if column F exists and if F6 has data
+    try:
+        temp_df = pd.read_excel(uploaded_file, header=None, nrows=6)
+        
+        # Check if column F exists in the dataframe
+        if temp_df.shape[1] > 5:  # Check if there are more than 5 columns (i.e., column F exists)
+            f6_value = temp_df.iloc[5, 5]  # Access cell F6 (row 6, column 6)
+            if pd.isna(f6_value):
+                f6_exists = False  # F6 exists but is empty
+            else:
+                f6_exists = True  # F6 exists and is not empty
+        else:
+            f6_exists = False  # F6 does not exist (out of bounds)
+
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        f6_exists = False  # If any error occurs, assume F6 is empty or non-existent
+
+    # Step 2: Based on whether F6 exists and is not empty, proceed accordingly
+    if not f6_exists:  # Cell F6 is empty or out of bounds
+        print("Cell F6 is empty or out of bounds. Proceeding with the usual process...")
         
         # Read the first 15 rows without header to check cell values
         temp_df = pd.read_excel(uploaded_file, header=None, nrows=15)
@@ -74,15 +103,12 @@ if uploaded_file is not None:
 
         # Read the data with the correct header
         df = pd.read_excel(uploaded_file, header=header_row, usecols=[0, 1, 4])
+        
+        # Rename columns based on column indexes
         df.columns = ['Stoff', 'Aggregat', 'Menge']
+
+        # Proceed with filtering and cleaning as before
         df = df[df["Stoff"].isin(filter_values)]
-
-        # Clean and convert the 'Menge' column to numeric
-        def clean_menge(value):
-            if isinstance(value, str):
-                value = value.replace('<', '').replace('>', '').replace('<=', '').replace('≥', '').replace('>=', '').replace('=', '').replace(',', '.').strip()
-            return pd.to_numeric(value, errors='coerce')
-
         df['Menge'] = df['Menge'].apply(clean_menge)
 
         # Update 'Aggregat' for 'pH-Wert'
@@ -93,7 +119,7 @@ if uploaded_file is not None:
         df = df.reset_index(drop=True)
         dataframes = [df]  # Wrap the single dataframe into a list
 
-    else:
+    else:  # Cell F6 is NOT empty
         print("Cell F6 is not empty. Handling multiple tables...")
 
         # Check how many columns starting from column E are not empty
@@ -111,6 +137,7 @@ if uploaded_file is not None:
             df = df[~((df['Stoff'] == 'Benzo(a)pyren') & (df['Aggregat'] == 'µg/l'))]
             df = df.reset_index(drop=True)
             dataframes.append(df)
+
 
     ############################################################
     #END DATA PART OF CODE
@@ -185,13 +212,21 @@ if uploaded_file is not None:
             final_df = fullpipeline(df, subcategory=subcategory, eluat=True, fremdbestandteile_under_10=fremdbestandteile_under_10)
             final_dfs.append(final_df)
 
+        # Display each dataframe as a separate table in Streamlit
+        for i, final_df in enumerate(final_dfs):
+            st.subheader(f"Ausgewertete Tabelle {i + 1}")
+            st.dataframe(final_df, use_container_width=True)
+
+        # Combine all dataframes if needed for download
         final_result = pd.concat(final_dfs, ignore_index=True)
 
-        st.subheader("Processed DataFrame")
-        st.dataframe(final_result)
-
+        # Provide download option for the combined dataframe
         csv = final_result.to_csv(index=False).encode('utf-8')
-        st.download_button(label="Download data as CSV", data=csv, file_name='processed_dataframe.csv', mime='text/csv')
-
+        st.download_button(
+            label="Download data as CSV",
+            data=csv,
+            file_name='processed_dataframe.csv',
+            mime='text/csv',
+        )
 else:
     st.info("Please upload an Excel file to proceed.")
